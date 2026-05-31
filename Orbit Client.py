@@ -1,10 +1,3 @@
-# ==============================================================================
-#                  ORBIT CLIENT - ULTRA FPS & STABLE ENGINE (v4.4.4)
-# ==============================================================================
-# Autor: Orbit Dev Team & Karol (_smutek)
-# Poprawka: Implementacja pełnego Menedżera Paczek Zasobów (Resource Packs)
-# ==============================================================================
-
 import os
 import sys
 import time
@@ -40,8 +33,10 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import minecraft_launcher_lib
 
+VERSION_LAUNCHER = "4.5.0"
+UPDATE_URL = "https://TWÓJ_LINK_DO_PLIKU_Z_KODEM.py/raw" 
+
 BASE_FOLDER = os.path.expanduser("~/.orbit_client")
-VERSION_LAUNCHER = "v4.4.4-PACKS-FIX"
 BG_DARK = "#0d0e11"      
 BG_PANEL = "#14161d"     
 ACCENT = "#7c3aed"       
@@ -155,9 +150,11 @@ class OrbitLogWatcher:
 class OrbitLunarLauncher(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title(f"Orbit Client Launcher {VERSION_LAUNCHER}")
+        self.title(f"Orbit Client Launcher v{VERSION_LAUNCHER}")
         self.geometry("1150x750")
         self.configure(fg_color=BG_DARK)
+        
+        self.check_for_updates()
         
         self.config_manager = OrbitConfigManager()
         self.skin_manager = OrbitSkinCacheManager()
@@ -175,6 +172,33 @@ class OrbitLunarLauncher(ctk.CTk):
         self.nick_var.trace_add("write", self._on_nick_changed)
         
         self.build_launcher_interface()
+
+    def check_for_updates(self):
+        if "TWÓJ_LINK_DO_PLIKU_Z_KODEM" in UPDATE_URL:
+            return  
+            
+        try:
+            response = requests.get(UPDATE_URL, timeout=5)
+            if response.status_code == 200:
+                remote_code = response.text
+                
+                for line in remote_code.split("\n"):
+                    if "VERSION_LAUNCHER =" in line:
+                        remote_version = line.split("=")[1].strip().replace('"', '').replace("'", "")
+                        
+                        if remote_version != VERSION_LAUNCHER:
+                            current_file = os.path.abspath(sys.argv[0])
+                            
+                            with open(current_file, "w", encoding="utf-8") as f:
+                                f.write(remote_code)
+                                
+                            messagebox.showinfo("Orbit Updater", f"Wykryto nową wersję ({remote_version})! Launcher zaktualizował się automatycznie i uruchomi się ponownie.")
+                            
+                            subprocess.Popen([sys.executable, current_file])
+                            sys.exit()
+                        break
+        except Exception as e:
+            print(f"[Updater] Update failed: {e}")
 
     def build_launcher_interface(self):
         self.grid_columnconfigure(1, weight=1)
@@ -238,7 +262,6 @@ class OrbitLunarLauncher(ctk.CTk):
         header.pack_propagate(False)
         ctk.CTkLabel(header, text="ORBIT CLIENT", font=("Impact", 44), text_color=TEXT_LIGHT).pack(side="left", padx=35, pady=25)
         ctk.CTkLabel(header, text="v1.0", font=("Segoe UI", 20), text_color=TEXT_LIGHT).pack(side="left", padx=35, pady=25)
-
         card = ctk.CTkFrame(self.viewport, fg_color=BG_PANEL, corner_radius=16)
         card.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -253,7 +276,7 @@ class OrbitLunarLauncher(ctk.CTk):
         self.engine_btn = ctk.CTkButton(card, text=f"Silnik startowy: {self.mode}", width=360, height=42, fg_color="#1b1e26", hover_color="#242934", command=self._toggle_loader)
         self.engine_btn.pack(pady=15)
 
-        self.status_bar = ctk.CTkLabel(card, text="Gotowy do uruchomienia ", font=("Segoe UI", 13, "bold"), text_color="#10b981")
+        self.status_bar = ctk.CTkLabel(card, text=f"Gotowy do uruchomienia", font=("Segoe UI", 13, "bold"), text_color="#10b981")
         self.status_bar.pack(pady=5)
 
         ctk.CTkButton(card, text="URUCHOM", fg_color=ACCENT, hover_color="#6d28d9", width=400, height=65, font=("Segoe UI", 20, "bold"), corner_radius=14,
@@ -302,64 +325,42 @@ class OrbitLunarLauncher(ctk.CTk):
                     return
         except: pass
 
-    # POPRAWKA: W pełni funkcjonalny Menedżer Paczek Zasobów
     def render_packs_view(self):
         self.clear_viewport()
-        
         top_frame = ctk.CTkFrame(self.viewport, fg_color="transparent")
         top_frame.pack(fill="x", padx=25, pady=20)
         
         ctk.CTkLabel(top_frame, text="Menedżer Paczek Zasobów (Txt)", font=("Segoe UI", 26, "bold"), text_color=TEXT_LIGHT).pack(side="left")
-        
-        # Przycisk szybkiego otwierania folderu w Windows Explorer
-        ctk.CTkButton(top_frame, text="📁 Otwórz folder", fg_color="#1b1e26", hover_color="#242934", font=("Segoe UI", 13, "bold"),
-                      command=lambda: os.startfile(PACKS_DIR)).pack(side="right", padx=5)
-        
-        # Odświeżanie listy paczek
-        ctk.CTkButton(top_frame, text="🔄 Odśwież", fg_color=ACCENT, hover_color="#6d28d9", font=("Segoe UI", 13, "bold"), width=100,
-                      command=self.render_packs_view).pack(side="right", padx=5)
+        ctk.CTkButton(top_frame, text="📁 Otwórz folder", fg_color="#1b1e26", hover_color="#242934", font=("Segoe UI", 13, "bold"), command=lambda: os.startfile(PACKS_DIR)).pack(side="right", padx=5)
+        ctk.CTkButton(top_frame, text="🔄 Odśwież", fg_color=ACCENT, hover_color="#6d28d9", font=("Segoe UI", 13, "bold"), width=100, command=self.render_packs_view).pack(side="right", padx=5)
 
         self.p_scroll = ctk.CTkScrollableFrame(self.viewport, fg_color=BG_PANEL, corner_radius=15)
         self.p_scroll.pack(fill="both", expand=True, pady=10, padx=25)
-
         self._load_local_resource_packs()
 
     def _load_local_resource_packs(self):
         for w in self.p_scroll.winfo_children(): w.destroy()
-        
-        if not os.path.exists(PACKS_DIR):
-            os.makedirs(PACKS_DIR, exist_ok=True)
-            
+        if not os.path.exists(PACKS_DIR): os.makedirs(PACKS_DIR, exist_ok=True)
         files = os.listdir(PACKS_DIR)
         if not files:
-            ctk.CTkLabel(self.p_scroll, text="Folder resourcepacks jest pusty. Wrzuć tu pliki .zip paczek zasobów!", 
-                         font=("Segoe UI", 14), text_color=TEXT_MUTED).pack(pady=40)
+            ctk.CTkLabel(self.p_scroll, text="Folder resourcepacks jest pusty. Wrzuć tu pliki .zip paczek zasobów!", font=("Segoe UI", 14), text_color=TEXT_MUTED).pack(pady=40)
             return
-
         for filename in files:
             row = ctk.CTkFrame(self.p_scroll, fg_color=BG_DARK, height=60)
             row.pack(fill="x", pady=6, padx=6)
             row.pack_propagate(False)
-            
-            # Ikona paczki i nazwa pliku
             ctk.CTkLabel(row, text="📦", font=("Arial", 20), text_color=ACCENT).pack(side="left", padx=15)
             ctk.CTkLabel(row, text=filename, font=("Segoe UI", 14, "bold"), text_color=TEXT_LIGHT, anchor="w").pack(side="left", fill="x", expand=True)
-            
-            # Przycisk usuwania paczki z dysku
-            ctk.CTkButton(row, text="Usuń", fg_color="#ef4444", hover_color="#dc2626", width=80, height=32,
-                          command=lambda f=filename: self._delete_resource_pack(f)).pack(side="right", padx=15)
+            ctk.CTkButton(row, text="Usuń", fg_color="#ef4444", hover_color="#dc2626", width=80, height=32, command=lambda f=filename: self._delete_resource_pack(f)).pack(side="right", padx=15)
 
     def _delete_resource_pack(self, filename):
         if messagebox.askyesno("Orbit Resource Packs", f"Czy na pewno chcesz trwale usunąć paczkę {filename}?"):
             try:
                 target_path = os.path.join(PACKS_DIR, filename)
-                if os.path.isdir(target_path):
-                    shutil.rmtree(target_path)
-                else:
-                    os.remove(target_path)
+                if os.path.isdir(target_path): shutil.rmtree(target_path)
+                else: os.remove(target_path)
                 self.render_packs_view()
-            except Exception as e:
-                messagebox.showerror("Błąd", f"Nie udało się usunąć pliku: {str(e)}")
+            except Exception as e: messagebox.showerror("Błąd", f"Nie udało się usunąć pliku: {str(e)}")
 
     def render_settings_view(self):
         self.clear_viewport()
@@ -392,9 +393,7 @@ class OrbitLunarLauncher(ctk.CTk):
     def execute_minecraft_engine(self):
         try:
             self.after(0, lambda: self.status_bar.configure(text="Sprawdzanie i pobieranie plików gry...", text_color="#f59e0b"))
-            
             minecraft_launcher_lib.install.install_minecraft_version(self.selected_version, BASE_FOLDER)
-            
             target_runtime = self.selected_version
             if self.mode == "Fabric":
                 self.after(0, lambda: self.status_bar.configure(text="Inicjalizacja środowiska Fabric...", text_color="#7c3aed"))
@@ -402,28 +401,14 @@ class OrbitLunarLauncher(ctk.CTk):
                 minecraft_launcher_lib.fabric.install_fabric(self.selected_version, BASE_FOLDER, loader_version=fab)
                 target_runtime = f"fabric-loader-{fab}-{self.selected_version}"
 
-            boost_args = [
-                f"-Xmx{self.ram_val}G",
-                "-XX:+UseG1GC",
-                "-Dminecraft.applet.TargetDirectory=" + INSTANCE_DIR
-            ]
-
-            options = {
-                "username": self.user_nick,
-                "uuid": str(uuid.uuid4()),
-                "token": "",
-                "jvmArguments": boost_args,
-                "gameDirectory": INSTANCE_DIR
-            }
-
+            boost_args = [f"-Xmx{self.ram_val}G", "-XX:+UseG1GC", "-Dminecraft.applet.TargetDirectory=" + INSTANCE_DIR]
+            options = {"username": self.user_nick, "uuid": str(uuid.uuid4()), "token": "", "jvmArguments": boost_args, "gameDirectory": INSTANCE_DIR}
             command = minecraft_launcher_lib.command.get_minecraft_command(target_runtime, BASE_FOLDER, options)
             self.after(0, lambda: self.status_bar.configure(text="Uruchamianie procesu gry...", text_color="#10b981"))
             
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            
             watcher = OrbitLogWatcher(self.append_console_stream)
             watcher.start_watch(process)
-            
             branding = OrbitWindowBrandingEngine(process.pid, "Orbit Client")
             threading.Thread(target=branding.monitor_target, daemon=True).start()
         except Exception as error_msg:
