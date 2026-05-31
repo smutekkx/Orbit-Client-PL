@@ -34,7 +34,7 @@ import customtkinter as ctk
 import minecraft_launcher_lib
 
 VERSION_LAUNCHER = "4.5.0"
-UPDATE_URL = "https://TWÓJ_LINK_DO_PLIKU_Z_KODEM.py/raw" 
+UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 
 BASE_FOLDER = os.path.expanduser("~/.orbit_client")
 BG_DARK = "#0d0e11"      
@@ -261,7 +261,7 @@ class OrbitLunarLauncher(ctk.CTk):
         header.pack(fill="x", pady=(0, 20))
         header.pack_propagate(False)
         ctk.CTkLabel(header, text="ORBIT CLIENT", font=("Impact", 44), text_color=TEXT_LIGHT).pack(side="left", padx=35, pady=25)
-        ctk.CTkLabel(header, text="v1.0", font=("Segoe UI", 20), text_color=TEXT_LIGHT).pack(side="left", padx=35, pady=25)
+        ctk.CTkLabel(header, text="v1.0 (r)", font=("Segoe UI", 20), text_color=TEXT_LIGHT).pack(side="left", padx=35, pady=25)
         card = ctk.CTkFrame(self.viewport, fg_color=BG_PANEL, corner_radius=16)
         card.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -279,7 +279,7 @@ class OrbitLunarLauncher(ctk.CTk):
         self.status_bar = ctk.CTkLabel(card, text=f"Gotowy do uruchomienia", font=("Segoe UI", 13, "bold"), text_color="#10b981")
         self.status_bar.pack(pady=5)
 
-        ctk.CTkButton(card, text="URUCHOM", fg_color=ACCENT, hover_color="#6d28d9", width=400, height=65, font=("Segoe UI", 20, "bold"), corner_radius=14,
+        ctk.CTkButton(card, text="URUCHOM ORBIT CLIENT", fg_color=ACCENT, hover_color="#6d28d9", width=400, height=65, font=("Segoe UI", 20, "bold"), corner_radius=14,
                       command=lambda: threading.Thread(target=self.execute_minecraft_engine, daemon=True).start()).pack(pady=20)
 
     def _toggle_loader(self):
