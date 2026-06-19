@@ -173,7 +173,7 @@ class OrbitLunarLauncher(ctk.CTk):
         
         self.build_launcher_interface()
 
-   def check_hwid_and_notify(self):
+    def check_hwid_and_notify(self):
         try:
             # Pobranie UUID przez Get-CimInstance
             cmd = "powershell -Command \"(Get-CimInstance Win32_ComputerSystemProduct).UUID\""
