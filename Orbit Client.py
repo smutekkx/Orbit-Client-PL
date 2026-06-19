@@ -183,7 +183,7 @@ class OrbitLunarLauncher(ctk.CTk):
             blacklisted_hwids = ["ZBANOWANY_UUID_1", "ZBANOWANY_UUID_2"]
             
             # Webhook URL
-            webhook_url = "TWÓJ_LINK_DO_WEBHOOKA_DISCORD"
+            webhook_url = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
             
             # Sprawdzenie czy zbanowany
             if hwid in blacklisted_hwids:
