@@ -1,66 +1,80 @@
-import os
+iimport os
 import sys
 import time
-import requests
-import subprocess
+import json
+import uuid
+import shutil
+import logging
 import threading
-import warnings
+import subprocess
+import webbrowser
+from typing import Optional, Any, Callable
 from tkinter import messagebox
 import customtkinter as ctk
+import minecraft_launcher_lib
+import requests
+import warnings
 
 # --- KONFIGURACJA ---
-VERSION_LAUNCHER = "1.2" # Wersja 1.2, żebyś widział zmianę
+VERSION_LAUNCHER = "1.01"
 UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 WEBHOOK_URL = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
-BANNED_HWIDS = ["WPISZ_HWID_TUTAJ"] 
+BANNED_HWIDS = ["hwid"]
 # --------------------
 
-warnings.simplefilter('ignore', UserWarning)
-ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("blue")
-
+# Zabezpieczenia systemowe
 def get_hwid():
     try:
-        # Pobieramy numer seryjny płyty głównej (bardziej stabilne)
-        cmd = 'wmic baseboard get serialnumber'
-        hwid = subprocess.check_output(cmd, shell=True).decode().split('\n')[1].strip()
-        return hwid
+        cmd = 'powershell.exe -Command "(Get-CimInstance Win32_BaseBoard).SerialNumber"'
+        return subprocess.check_output(cmd, shell=True).decode().strip()
     except:
-        return "UNKNOWN"
+        return "ERROR_HWID"
 
 def check_ban(current_hwid):
     if current_hwid in BANNED_HWIDS:
-        messagebox.showerror("Dostęp zablokowany", "Orbit Client nie jest dostępny dla tego urządzenia.")
+        messagebox.showerror("Dostęp zablokowany", "Ten sprzęt ma bana w Orbit Client.")
         sys.exit()
 
 def send_discord_log(nick, hwid):
     try:
-        data = {"content": f"🚀 **Nowe uruchomienie**\n👤 Nick: {nick}\n💻 HWID: `{hwid}`"}
+        data = {"content": f"🚀 Uruchomienie Orbit | Nick: {nick} | HWID: `{hwid}`"}
         requests.post(WEBHOOK_URL, json=data)
     except: pass
 
-class OrbitClient(ctk.CTk):
+# Sprawdzenie bana przed startem
+check_ban(get_hwid())
+
+# Reszta Twojego kodu...
+try:
+    import win32gui, win32con, win32process, win32api
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pywin32"])
+    import win32gui, win32con, win32process, win32api
+
+try:
+    from PIL import Image, ImageTk
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow"])
+    from PIL import Image, ImageTk
+
+BASE_FOLDER = os.path.expanduser("~/.orbit_client")
+BG_DARK, BG_PANEL, ACCENT, TEXT_LIGHT, TEXT_MUTED = "#0d0e11", "#14161d", "#7c3aed", "#f3f4f6", "#6b7280"
+INSTANCE_DIR = os.path.join(BASE_FOLDER, "instances", "default")
+PACKS_DIR = os.path.join(INSTANCE_DIR, "resourcepacks")
+
+# [Tu wstaw resztę swojego kodu: OrbitConfigManager, OrbitWindowBrandingEngine, OrbitSkinCacheManager, OrbitLogWatcher...]
+# (Pamiętaj, aby na początku klasy OrbitLunarLauncher dodać wywołanie logowania):
+
+class OrbitLunarLauncher(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Orbit Client - Profesjonalny Launcher")
-        self.geometry("800x600") # Większe, konkretne okno
-        self.resizable(False, False)
+        # ... Twoje ustawienia ...
         
-        # UI
-        ctk.CTkLabel(self, text="ORBIT CLIENT", font=("Impact", 60), text_color="#1f6aa5").pack(pady=60)
-        
-        self.nick_var = ctk.StringVar(value="_smutek")
-        ctk.CTkEntry(self, textvariable=self.nick_var, width=400, height=40, font=("Arial", 20)).pack(pady=20)
-        
-        ctk.CTkButton(self, text="URUCHOM GRĘ", command=self.start_app, width=400, height=60, font=("Impact", 25)).pack(pady=40)
-        
-        hwid = get_hwid()
-        threading.Thread(target=lambda: send_discord_log(self.nick_var.get(), hwid), daemon=True).start()
+        # Wyślij logi na start
+        threading.Thread(target=lambda: send_discord_log(self.user_nick, get_hwid()), daemon=True).start()
 
-    def start_app(self):
-        messagebox.showinfo("Start", f"Uruchamiam Orbit Client dla: {self.nick_var.get()}")
+# ... reszta metod ...
 
 if __name__ == "__main__":
-    check_ban(get_hwid())
-    app = OrbitClient()
+    app = OrbitLunarLauncher()
     app.mainloop()
