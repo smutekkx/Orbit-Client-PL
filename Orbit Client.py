@@ -33,7 +33,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import minecraft_launcher_lib
 
-VERSION_LAUNCHER = "1.8"
+VERSION_LAUNCHER = "1.8.8"
 UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 
 BASE_FOLDER = os.path.expanduser("~/.orbit_client")
@@ -172,13 +172,18 @@ class OrbitLunarLauncher(ctk.CTk):
         self.nick_var.trace_add("write", self._on_nick_changed)
         
         self.build_launcher_interface()
-def __init__(self):
+class OrbitLunarLauncher(ctk.CTk):
+    def __init__(self):
+        print("DEBUG: Init startuje!") # Czy to widzisz w konsoli?
         super().__init__()
         
-        # DODAJ TĘ LINIĘ:
-        self.check_hwid_and_notify() 
-        
-        # ... reszta Twojego kodu ..
+        try:
+            self.check_hwid_and_notify()
+            print("DEBUG: check_hwid_and_notify wywołano pomyślnie!")
+        except Exception as e:
+            print(f"DEBUG: Błąd przy wywołaniu funkcji: {e}")
+            
+        # ... reszta kodu ...
    
 def check_hwid_and_notify(self):
         print("DEBUG: Rozpoczynam sprawdzanie HWID...") # To pokaże czy funkcja startuje
