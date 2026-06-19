@@ -175,26 +175,23 @@ class OrbitLunarLauncher(ctk.CTk):
 
     def check_hwid_and_notify(self):
         try:
-            # Pobranie UUID przez Get-CimInstance
             cmd = "powershell -Command \"(Get-CimInstance Win32_ComputerSystemProduct).UUID\""
             hwid = subprocess.check_output(cmd, shell=True).decode().strip()
             
-            # Lista zbanowanych UUID
             blacklisted_hwids = ["ZBANOWANY_UUID_1", "ZBANOWANY_UUID_2"]
-            
-            # Webhook URL
             webhook_url = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
             
-            # Sprawdzenie czy zbanowany
             if hwid in blacklisted_hwids:
                 payload = {"content": f"🚫 **BLOCKED ACCESS**\nZbanowany użytkownik próbował uruchomić Orbit Client!\nUUID: `{hwid}`"}
                 requests.post(webhook_url, json=payload, timeout=5)
-                messagebox.showerror("Orbit Security", "Twoje urządzenie zostało zablokowane z Orbit Client!")
+                messagebox.showerror("Orbit Security", "Twoje urządzenie zostało zablokowane z Orbit Client")
                 sys.exit()
             else:
-                # Opcjonalnie: powiadomienie o każdym uruchomieniu
                 payload = {"content": f"✅ **LAUNCH ALERT**\nUżytkownik uruchomił Orbit Client.\nUUID: `{hwid}`"}
                 requests.post(webhook_url, json=payload, timeout=5)
+                
+        except Exception:
+            sys.exit()
                 
         except Exception:
             sys.exit()
