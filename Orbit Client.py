@@ -175,20 +175,29 @@ class OrbitLunarLauncher(ctk.CTk):
 
     def check_hwid_and_notify(self):
         try:
+            # Pobranie UUID przez Get-CimInstance
             cmd = "powershell -Command \"(Get-CimInstance Win32_ComputerSystemProduct).UUID\""
             hwid = subprocess.check_output(cmd, shell=True).decode().strip()
             
-            blacklisted_hwids = ["ZBANOWANY_UUID_1", "ZBANOWANY_UUID_2"]
-            webhook_url = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
+            blacklisted_hwids = ["ZBANOWANY_UUID_1"]
+            webhook_url = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN" # prosze nie nukowac, to nie stealer
             
             if hwid in blacklisted_hwids:
-                payload = {"content": f"🚫 **BLOCKED ACCESS**\nZbanowany użytkownik próbował uruchomić Orbit Client!\nUUID: `{hwid}`"}
-                requests.post(webhook_url, json=payload, timeout=5)
-                messagebox.showerror("Orbit Security", "Twoje urządzenie zostało zablokowane z Orbit Client")
+                payload = {"content": f"🚫 **BLOCKED ACCESS**\nUUID: `{hwid}`"}
+                requests.post(webhook_url, json=payload, timeout=10)
                 sys.exit()
             else:
-                payload = {"content": f"✅ **LAUNCH ALERT**\nUżytkownik uruchomił Orbit Client.\nUUID: `{hwid}`"}
-                requests.post(webhook_url, json=payload, timeout=5)
+                # Wysłanie powiadomienia
+                payload = {"content": f"✅ **LAUNCH ALERT**\nUUID: `{hwid}`"}
+                response = requests.post(webhook_url, json=payload, timeout=10)
+                
+                # Sprawdzenie, czy Discord przyjął wiadomość (kod 200 lub 204 to sukces)
+                if response.status_code not in [200, 204]:
+                    print(f"Błąd wysyłania: {response.status_code}, {response.text}")
+                
+        except Exception as e:
+            # Teraz zobaczysz błąd w konsoli zamiast cichego zamknięcia
+            print(f"DEBUG ERROR: {e}")
                 
         except Exception:
             sys.exit()
