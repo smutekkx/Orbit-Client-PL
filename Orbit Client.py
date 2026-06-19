@@ -16,7 +16,7 @@ import requests
 import warnings
 
 # --- KONFIGURACJA ---
-VERSION_LAUNCHER = "1.01"
+VERSION_LAUNCHER = "1.5.0.1"
 UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 WEBHOOK_URL = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
 BANNED_HWIDS = ["hwid"]
