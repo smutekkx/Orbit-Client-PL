@@ -13,7 +13,7 @@ import customtkinter as ctk
 import minecraft_launcher_lib
 
 # --- KONFIGURACJA ---
-VERSION_LAUNCHER = "1.02"
+VERSION_LAUNCHER = "1.1"
 UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 WEBHOOK_URL = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
 BANNED_HWIDS = ""
