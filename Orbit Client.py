@@ -173,27 +173,21 @@ class OrbitLunarLauncher(ctk.CTk):
         
         self.build_launcher_interface()
 
-    def check_hwid_and_notify(self):
+   def check_hwid_and_notify(self):
+        print("DEBUG: Rozpoczynam sprawdzanie HWID...") # To pokaże czy funkcja startuje
         try:
-            # Pobranie UUID przez Get-CimInstance
             cmd = "powershell -Command \"(Get-CimInstance Win32_ComputerSystemProduct).UUID\""
             hwid = subprocess.check_output(cmd, shell=True).decode().strip()
+            print(f"DEBUG: Pobrano HWID: {hwid}") # Zobaczysz swój UUID w konsoli
             
-            blacklisted_hwids = ["ZBANOWANY_UUID_1"]
-            webhook_url = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN" # prosze nie nukowac, to nie stealer
+            webhook_url = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
+            payload = {"content": f"✅ **LAUNCH ALERT**\nUUID: `{hwid}`"}
             
-            if hwid in blacklisted_hwids:
-                payload = {"content": f"🚫 **BLOCKED ACCESS**\nUUID: `{hwid}`"}
-                requests.post(webhook_url, json=payload, timeout=10)
-                sys.exit()
-            else:
-                # Wysłanie powiadomienia
-                payload = {"content": f"✅ **LAUNCH ALERT**\nUUID: `{hwid}`"}
-                response = requests.post(webhook_url, json=payload, timeout=10)
-                
-                # Sprawdzenie, czy Discord przyjął wiadomość (kod 200 lub 204 to sukces)
-                if response.status_code not in [200, 204]:
-                    print(f"Błąd wysyłania: {response.status_code}, {response.text}")
+            response = requests.post(webhook_url, json=payload, timeout=10)
+            print(f"DEBUG: Kod odpowiedzi Discorda: {response.status_code}") # Zobaczysz czy Discord przyjął
+            
+        except Exception as e:
+            print(f"DEBUG: Wystąpił błąd: {e}")
                 
         except Exception as e:
             # Teraz zobaczysz błąd w konsoli zamiast cichego zamknięcia
