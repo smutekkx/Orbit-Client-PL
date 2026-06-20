@@ -176,12 +176,17 @@ class OrbitLunarLauncher(ctk.CTk):
         
         self.build_launcher_interface()
 
-    def send_discord_notification(self, message):
+   def send_discord_notification(self, message):
         try:
+            print(f"[Webhook] Próba wysłania: {message}")
             payload = {"content": message}
-            requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=5)
+            response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=5)
+            if response.status_code == 204:
+                print("[Webhook] Sukces! Powiadomienie wysłane.")
+            else:
+                print(f"[Webhook] Błąd serwera Discord (kod: {response.status_code})")
         except Exception as e:
-            print(f"[Webhook] Failed to send: {e}")
+            print(f"[Webhook] Błąd krytyczny: {e}")
 
     def check_for_updates(self):
         try:
