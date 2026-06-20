@@ -36,7 +36,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import minecraft_launcher_lib
 
-VERSION_LAUNCHER = "1.22.2"
+VERSION_LAUNCHER = "1.35.5"
 UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 
 BASE_FOLDER = os.path.expanduser("~/.orbit_client")
