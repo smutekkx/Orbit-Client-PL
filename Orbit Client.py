@@ -33,7 +33,156 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import minecraft_launcher_lib
 
-VERSION_LAUNCHER = "1.10"
+VERSION_LAUNCHER = "1.6"
+UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
+
+BASE_FOLDER = os.path.expanduser("~/.orbit_client")
+BG_DARK = "#0d0e11"      
+BG_PANEL = "#14161d"     
+ACCENT = "#7c3aed"        
+TEXT_LIGHT = "#f3f4f6"
+TEXT_MUTED = "#6b7280"
+
+INSTANCE_DIR = os.path.join(BASE_FOLDER, "instances", "default")
+PACKS_DIR = os.path.join(INSTANCE_DIR, "resourcepacks")
+
+for folder in ["versions", "logs", "cache", "cache/skins", "config"]:
+    os.makedirs(os.path.join(BASE_FOLDER, folder), exist_ok=True)
+os.makedirs(os.path.join(INSTANCE_DIR, "mods"), exist_ok=True)
+os.makedirs(PACKS_DIR, exist_ok=True)
+
+class OrbitConfigManager:
+    def __init__(self):
+        self.config_file = os.path.join(BASE_FOLDER, "config", "launcher_settings.json")
+        self.settings = {"theme": "dark", "auto_close": False, "discord_rpc": True, "global_ram": 4, "last_used_profile": "_smutek"}
+        self.load_config()
+
+    def load_config(self):
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, "r", encoding="utf-8") as f: self.settings.update(json.load(f))
+            except: pass
+        else: self.save_config()
+
+    def save_config(self):
+        try:
+            with open(self.config_file, "w", encoding="utf-8") as f: json.dump(self.settings, f, indent=4, ensure_ascii=False)
+        except: pass
+
+class OrbitWindowBrandingEngine:
+    def __init__(self, target_pid: int, expected_title: str):
+        self.target_pid = target_pid
+        self.expected_title = expected_title
+        self.icon_path = os.path.abspath("logo.ico")
+        self.hicon = None
+        self._load_system_icon()
+        self._boost_cpu_priority()
+
+    def _boost_cpu_priority(self):
+        try:
+            handle = win32api.OpenProcess(win32con.PROCESS_SET_INFORMATION, True, self.target_pid)
+            win32process.SetPriorityClass(handle, win32process.HIGH_PRIORITY_CLASS)
+            win32api.CloseHandle(handle)
+        except: pass
+
+    def _load_system_icon(self):
+        if os.path.exists(self.icon_path):
+            try:
+                self.hicon = win32gui.LoadImage(0, self.icon_path, win32con.IMAGE_ICON, 0, 0, win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE)
+            except: pass
+
+    def monitor_target(self):
+        for _ in range(200):
+            try: win32gui.EnumWindows(self._process_windows, None)
+            except: pass
+            time.sleep(0.2)
+
+    def _process_windows(self, hwnd, lparam) -> bool:
+        if win32gui.IsWindowVisible(hwnd):
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            if pid == self.target_pid:
+                w_class = win32gui.GetClassName(hwnd)
+                if "LWJGL" in w_class or "GLFW30" in w_class or w_class == "SunAwtFrame":
+                    if win32gui.GetWindowText(hwnd) != self.expected_title: win32gui.SetWindowText(hwnd, self.expected_title)
+                    if self.hicon:
+                        if win32gui.SendMessage(hwnd, win32con.WM_GETICON, win32con.ICON_BIG, 0) != self.hicon:
+                            win32gui.SendMessage(hwnd, win32con.WM_SETICON, win32con.ICON_BIG, self.hicon)
+        return True
+
+class OrbitSkinCacheManager:
+    def __init__(self): self.cache_dir = os.path.join(BASE_FOLDER, "cache", "skins")
+    def get_player_head(self, username: str, callback: Callable[[Any], None]): threading.Thread(target=self._fetch_skin_flow, args=(username, callback), daemon=True).start()
+    def _fetch_skin_flow(self, username: str, callback: Callable[[Any], None]):
+        if not username or username.strip() == "": callback(None); return
+        target_path = os.path.join(self.cache_dir, f"{username}_head.png")
+        if os.path.exists(target_path): callback(target_path); return
+        try:
+            res = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{username}", timeout=2)
+            if res.status_code == 200:
+                user_id = res.json().get("id")
+                p_res = requests.get(f"https://sessionserver.mojang.com/session/minecraft/profile/{user_id}", timeout=2)
+                if p_res.status_code == 200:
+                    import base64
+                    val = p_res.json()["properties"][0]["value"]
+                    decoded = json.loads(base64.b64decode(val).decode("utf-8"))
+                    skin_bytes = requests.get(decoded["textures"]["SKIN"]["url"]).content
+                    with open(os.path.join(self.cache_dir, f"{username}_full.png"), "wb") as f: f.write(skin_bytes)
+                    img = Image.open(os.path.join(self.cache_dir, f"{username}_full.png"))
+                    img.crop((8, 8, 16, 16)).resize((45, 45), Image.Resampling.NEAREST).save(target_path)
+                    callback(target_path)
+                    return
+        except: pass
+        callback(None)
+
+class OrbitLogWatcher:
+    def __init__(self, console_callback: Callable[[str, str], None]): self.console_callback = console_callback
+    def start_watch(self, process: subprocess.Popen): threading.Thread(target=self._watch_loop, args=(process,), daemon=True).start()
+    def _watch_loop(self, process: subprocess.Popen):
+        while process.poll() is None:
+            line = process.stdout.readline()
+            if not line: time.sleep(0.01); continue
+            try:
+                decoded = line.decode("utf-8", errors="replace").strip()
+                lvl = "ERROR" if "ERROR" in decoded or "Severe" in decoded or "Exception" in decoded else "INFO"
+                self.console_callback(decoded, lvl)
+            except: pass
+
+import os
+import sys
+import time
+import json
+import uuid
+import shutil
+import logging
+import threading
+import subprocess
+import webbrowser
+from typing import Optional, Any, Callable
+
+try:
+    import win32gui
+    import win32con
+    import win32process
+    import win32api
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pywin32"])
+    import win32gui
+    import win32con
+    import win32process
+    import win32api
+
+try:
+    from PIL import Image, ImageTk
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow"])
+    from PIL import Image, ImageTk
+
+import requests
+from tkinter import filedialog, messagebox
+import customtkinter as ctk
+import minecraft_launcher_lib
+
+VERSION_LAUNCHER = "1.6"
 UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 
 BASE_FOLDER = os.path.expanduser("~/.orbit_client")
@@ -184,7 +333,7 @@ class OrbitLunarLauncher(ctk.CTk):
             return "UNKNOWN_UUID"
 
     def send_discord_webhook(self, message: str):
-        webhook_url = "TWÓJ_LINK_DO_WEBHOOKA_DISCORD"
+        webhook_url = "Thttps://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
         try:
             requests.post(webhook_url, json={"content": message}, timeout=5)
         except:
