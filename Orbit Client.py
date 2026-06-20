@@ -10,6 +10,9 @@ import subprocess
 import webbrowser
 from typing import Optional, Any, Callable
 
+# Webhook do powiadomień
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
+
 try:
     import win32gui
     import win32con
@@ -33,12 +36,12 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import minecraft_launcher_lib
 
-VERSION_LAUNCHER = "1.16"
+VERSION_LAUNCHER = "1.6"
 UPDATE_URL = "https://raw.githubusercontent.com/smutekkx/Orbit-Client-PL/refs/heads/main/Orbit%20Client.py"
 
 BASE_FOLDER = os.path.expanduser("~/.orbit_client")
-BG_DARK = "#0d0e11"        
-BG_PANEL = "#14161d"       
+BG_DARK = "#0d0e11"      
+BG_PANEL = "#14161d"     
 ACCENT = "#7c3aed"        
 TEXT_LIGHT = "#f3f4f6"
 TEXT_MUTED = "#6b7280"
@@ -171,33 +174,33 @@ class OrbitLunarLauncher(ctk.CTk):
         self.nick_var = ctk.StringVar(value=self.user_nick)
         self.nick_var.trace_add("write", self._on_nick_changed)
         
-        self._initialize_session_info() # Wywołanie inicjalizacji
         self.build_launcher_interface()
 
-    def _initialize_session_info(self):
-        """Wysyła info o sesji na Discorda używając CIM Instance"""
+    def send_discord_notification(self, message):
         try:
-            cmd = "powershell -Command \"(Get-CimInstance -ClassName Win32_Processor).ProcessorID\""
-            cpu_id = subprocess.check_output(cmd, shell=True).decode().strip()
-            
-            WEBHOOK_URL = "https://discord.com/api/webhooks/1517492582282821636/HOkRsg0_zGjuVkm6HsBJb24T0_E1uerbrBcGb1isjZ39KvGaL6JNG51x5P-t9aWR0PZN"
-            
-            message = {
-                "content": (
-                    f"🚀 **Nowa Sesja Orbit Client**\n"
-                    f"👤 **Aktualny Nick:** `{self.user_nick}`\n"
-                    f"📂 **Ostatnio używany (z config):** `{self.config_manager.settings.get('last_used_profile', 'Brak')}`\n"
-                    f"💻 **CPU ID:** `{cpu_id}`"
-                )
-            }
-            
-            threading.Thread(target=lambda: requests.post(WEBHOOK_URL, json=message), daemon=True).start()
+            payload = {"content": message}
+            requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=5)
         except Exception as e:
-            print(f"Nie udało się połączyćz serwerem: {e}")
+            print(f"[Webhook] Failed to send: {e}")
 
     def check_for_updates(self):
-        # Tutaj Twoja logika update'u
-        pass
+        try:
+            response = requests.get(UPDATE_URL, timeout=5)
+            if response.status_code == 200:
+                remote_code = response.text
+                for line in remote_code.split("\n"):
+                    if "VERSION_LAUNCHER =" in line:
+                        remote_version = line.split("=")[1].strip().replace('"', '').replace("'", "")
+                        if remote_version != VERSION_LAUNCHER:
+                            current_file = os.path.abspath(sys.argv[0])
+                            with open(current_file, "w", encoding="utf-8") as f:
+                                f.write(remote_code)
+                            messagebox.showinfo("Orbit Updater", f"Wykryto nową wersję ({remote_version})! Launcher zaktualizował się automatycznie.")
+                            subprocess.Popen([sys.executable, current_file])
+                            sys.exit()
+                        break
+        except Exception as e:
+            print(f"[Updater] Update failed: {e}")
 
     def build_launcher_interface(self):
         self.grid_columnconfigure(1, weight=1)
@@ -256,21 +259,167 @@ class OrbitLunarLauncher(ctk.CTk):
 
     def render_dashboard_view(self):
         self.clear_viewport()
-        # ... (resztę Twojej metody render_dashboard_view zostawiłem bez zmian)
         header = ctk.CTkFrame(self.viewport, height=120, fg_color=BG_PANEL, corner_radius=16)
         header.pack(fill="x", pady=(0, 20))
         header.pack_propagate(False)
         ctk.CTkLabel(header, text="ORBIT CLIENT", font=("Impact", 44), text_color=TEXT_LIGHT).pack(side="left", padx=35, pady=25)
+        ctk.CTkLabel(header, text="v1.0 (r)", font=("Segoe UI", 20), text_color=TEXT_LIGHT).pack(side="left", padx=35, pady=25)
         card = ctk.CTkFrame(self.viewport, fg_color=BG_PANEL, corner_radius=16)
         card.pack(fill="both", expand=True, padx=5, pady=5)
+
         ctk.CTkLabel(card, text="Twój nickname", font=("Segoe UI", 13, "bold"), text_color=TEXT_MUTED).pack(pady=(20, 2))
         ctk.CTkEntry(card, width=360, height=45, fg_color=BG_DARK, border_color="#262936", text_color=TEXT_LIGHT, textvariable=self.nick_var).pack(pady=5)
-        ctk.CTkButton(card, text="URUCHOM ORBIT CLIENT", fg_color=ACCENT, command=lambda: threading.Thread(target=self.execute_minecraft_engine, daemon=True).start()).pack(pady=20)
 
-    # (Resztę swoich metod zostaw tak jak miałeś w oryginale!)
+        ctk.CTkLabel(card, text="Wersja gry", font=("Segoe UI", 13, "bold"), text_color=TEXT_MUTED).pack(pady=(15, 2))
+        self.v_dropdown = ctk.CTkOptionMenu(card, values=self.all_versions, width=360, height=42, fg_color=BG_DARK, button_color=ACCENT, command=lambda c: setattr(self, 'selected_version', c))
+        self.v_dropdown.set(self.selected_version)
+        self.v_dropdown.pack(pady=5)
+
+        self.engine_btn = ctk.CTkButton(card, text=f"Silnik startowy: {self.mode}", width=360, height=42, fg_color="#1b1e26", hover_color="#242934", command=self._toggle_loader)
+        self.engine_btn.pack(pady=15)
+
+        self.status_bar = ctk.CTkLabel(card, text=f"Gotowy do uruchomienia", font=("Segoe UI", 13, "bold"), text_color="#10b981")
+        self.status_bar.pack(pady=5)
+
+        ctk.CTkButton(card, text="URUCHOM ORBIT CLIENT", fg_color=ACCENT, hover_color="#6d28d9", width=400, height=65, font=("Segoe UI", 20, "bold"), corner_radius=14,
+                      command=lambda: threading.Thread(target=self.execute_minecraft_engine, daemon=True).start()).pack(pady=20)
+
+    def _toggle_loader(self):
+        self.mode = "Fabric" if self.mode == "Vanilla" else "Vanilla"
+        self.engine_btn.configure(text=f"Silnik startowy: {self.mode}")
+
+    def render_mods_view(self):
+        self.clear_viewport()
+        ctk.CTkLabel(self.viewport, text="Menedżer Modyfikacji Fabric", font=("Segoe UI", 26, "bold"), text_color=TEXT_LIGHT).pack(anchor="w", padx=25, pady=20)
+        filter_frame = ctk.CTkFrame(self.viewport, fg_color="transparent")
+        filter_frame.pack(fill="x", padx=25, pady=5)
+        
+        search_box = ctk.CTkEntry(filter_frame, placeholder_text="Wpisz nazwę moda i wciśnij Enter...", width=400, height=45, fg_color=BG_PANEL, border_color="#262936")
+        search_box.pack(side="left", padx=(0, 15))
+        
+        mod_v_dropdown = ctk.CTkOptionMenu(filter_frame, values=self.mod_versions_list, width=120, height=42, fg_color=BG_PANEL, button_color=ACCENT, command=lambda c: setattr(self, 'mod_search_version', c))
+        mod_v_dropdown.set(self.mod_search_version)
+        mod_v_dropdown.pack(side="left")
+        
+        scroll = ctk.CTkScrollableFrame(self.viewport, fg_color=BG_PANEL, corner_radius=15)
+        scroll.pack(fill="both", expand=True, pady=15, padx=25)
+
+        def run_search(e=None):
+            for w in scroll.winfo_children(): w.destroy()
+            try:
+                res = requests.get(f"https://api.modrinth.com/v2/search?query={search_box.get()}&facets=[[\"categories:fabric\"],[\"versions:{self.mod_search_version}\"]]").json()
+                for item in res['hits']:
+                    row = ctk.CTkFrame(scroll, fg_color=BG_DARK, height=60)
+                    row.pack(fill="x", pady=6, padx=6)
+                    ctk.CTkLabel(row, text=item['title'], font=("Segoe UI", 14, "bold"), text_color=TEXT_LIGHT).pack(side="left", padx=15)
+                    ctk.CTkButton(row, text="Zainstaluj", fg_color=ACCENT, width=100, command=lambda m=item: self._download_mod(m, self.mod_search_version)).pack(side="right", padx=15, pady=10)
+            except: pass
+        search_box.bind("<Return>", run_search)
+
+    def _download_mod(self, mod, version_str):
+        try:
+            v_data = requests.get(f"https://api.modrinth.com/v2/project/{mod['project_id']}/version").json()
+            for v in v_data:
+                if version_str in v['game_versions'] and 'fabric' in v['loaders']:
+                    with open(os.path.join(INSTANCE_DIR, "mods", v['files'][0]['filename']), "wb") as f:
+                        f.write(requests.get(v['files'][0]['url']).content)
+                    messagebox.showinfo("Orbit Mod Engine", f"Dodano {mod['title']}!")
+                    return
+        except: pass
+
+    def render_packs_view(self):
+        self.clear_viewport()
+        top_frame = ctk.CTkFrame(self.viewport, fg_color="transparent")
+        top_frame.pack(fill="x", padx=25, pady=20)
+        
+        ctk.CTkLabel(top_frame, text="Menedżer Paczek Zasobów (Txt)", font=("Segoe UI", 26, "bold"), text_color=TEXT_LIGHT).pack(side="left")
+        ctk.CTkButton(top_frame, text="📁 Otwórz folder", fg_color="#1b1e26", hover_color="#242934", font=("Segoe UI", 13, "bold"), command=lambda: os.startfile(PACKS_DIR)).pack(side="right", padx=5)
+        ctk.CTkButton(top_frame, text="🔄 Odśwież", fg_color=ACCENT, hover_color="#6d28d9", font=("Segoe UI", 13, "bold"), width=100, command=self.render_packs_view).pack(side="right", padx=5)
+
+        self.p_scroll = ctk.CTkScrollableFrame(self.viewport, fg_color=BG_PANEL, corner_radius=15)
+        self.p_scroll.pack(fill="both", expand=True, pady=10, padx=25)
+        self._load_local_resource_packs()
+
+    def _load_local_resource_packs(self):
+        for w in self.p_scroll.winfo_children(): w.destroy()
+        if not os.path.exists(PACKS_DIR): os.makedirs(PACKS_DIR, exist_ok=True)
+        files = os.listdir(PACKS_DIR)
+        if not files:
+            ctk.CTkLabel(self.p_scroll, text="Folder resourcepacks jest pusty. Wrzuć tu pliki .zip paczek zasobów!", font=("Segoe UI", 14), text_color=TEXT_MUTED).pack(pady=40)
+            return
+        for filename in files:
+            row = ctk.CTkFrame(self.p_scroll, fg_color=BG_DARK, height=60)
+            row.pack(fill="x", pady=6, padx=6)
+            row.pack_propagate(False)
+            ctk.CTkLabel(row, text="📦", font=("Arial", 20), text_color=ACCENT).pack(side="left", padx=15)
+            ctk.CTkLabel(row, text=filename, font=("Segoe UI", 14, "bold"), text_color=TEXT_LIGHT, anchor="w").pack(side="left", fill="x", expand=True)
+            ctk.CTkButton(row, text="Usuń", fg_color="#ef4444", hover_color="#dc2626", width=80, height=32, command=lambda f=filename: self._delete_resource_pack(f)).pack(side="right", padx=15)
+
+    def _delete_resource_pack(self, filename):
+        if messagebox.askyesno("Orbit Resource Packs", f"Czy na pewno chcesz trwale usunąć paczkę {filename}?"):
+            try:
+                target_path = os.path.join(PACKS_DIR, filename)
+                if os.path.isdir(target_path): shutil.rmtree(target_path)
+                else: os.remove(target_path)
+                self.render_packs_view()
+            except Exception as e: messagebox.showerror("Błąd", f"Nie udało się usunąć pliku: {str(e)}")
+
+    def render_settings_view(self):
+        self.clear_viewport()
+        ctk.CTkLabel(self.viewport, text="Ustawienia RAM Javy", font=("Segoe UI", 26, "bold"), text_color=TEXT_LIGHT).pack(anchor="w", padx=25, pady=20)
+        card = ctk.CTkFrame(self.viewport, fg_color=BG_PANEL, corner_radius=15)
+        card.pack(fill="both", expand=True, padx=25, pady=10)
+        self.ram_lbl = ctk.CTkLabel(card, text=f"Przydzielony RAM: {self.ram_val} GB", font=("Segoe UI", 15, "bold"), text_color=TEXT_LIGHT)
+        self.ram_lbl.pack(anchor="w", padx=30, pady=20)
+        slider = ctk.CTkSlider(card, from_=2, to=12, number_of_steps=10, button_color=ACCENT, progress_color=ACCENT, command=self._update_ram)
+        slider.set(self.ram_val)
+        slider.pack(fill="x", padx=30)
+
+    def _update_ram(self, val):
+        self.ram_val = int(val)
+        self.ram_lbl.configure(text=f"Przydzielony RAM: {self.ram_val} GB")
+        self.config_manager.settings["global_ram"] = self.ram_val
+        self.config_manager.save_config()
+
+    def render_console_view(self):
+        self.clear_viewport()
+        ctk.CTkLabel(self.viewport, text="Konsola błędów (Sprawdź tu, jeśli gra się crashuje)", font=("Segoe UI", 26, "bold"), text_color=TEXT_LIGHT).pack(anchor="w", padx=25, pady=20)
+        self.console_text = ctk.CTkTextbox(self.viewport, fg_color=BG_PANEL, text_color="#10b981", font=("Consolas", 12))
+        self.console_text.pack(fill="both", expand=True, padx=25, pady=15)
+
+    def append_console_stream(self, text: str, level: str):
+        if hasattr(self, 'console_text') and self.console_text.winfo_exists():
+            self.console_text.insert("end", f"[{level}] {text}\n")
+            self.console_text.see("end")
+
     def execute_minecraft_engine(self):
-        # ...Twoja logika uruchamiania...
-        pass
+        try:
+            self.after(0, lambda: self.status_bar.configure(text="Sprawdzanie i pobieranie plików gry...", text_color="#f59e0b"))
+            minecraft_launcher_lib.install.install_minecraft_version(self.selected_version, BASE_FOLDER)
+            target_runtime = self.selected_version
+            if self.mode == "Fabric":
+                self.after(0, lambda: self.status_bar.configure(text="Inicjalizacja środowiska Fabric...", text_color="#7c3aed"))
+                fab = minecraft_launcher_lib.fabric.get_latest_loader_version()
+                minecraft_launcher_lib.fabric.install_fabric(self.selected_version, BASE_FOLDER, loader_version=fab)
+                target_runtime = f"fabric-loader-{fab}-{self.selected_version}"
+
+            boost_args = [f"-Xmx{self.ram_val}G", "-XX:+UseG1GC", "-Dminecraft.applet.TargetDirectory=" + INSTANCE_DIR]
+            options = {"username": self.user_nick, "uuid": str(uuid.uuid4()), "token": "", "jvmArguments": boost_args, "gameDirectory": INSTANCE_DIR}
+            command = minecraft_launcher_lib.command.get_minecraft_command(target_runtime, BASE_FOLDER, options)
+            self.after(0, lambda: self.status_bar.configure(text="Uruchamianie procesu gry...", text_color="#10b981"))
+            
+            # Wysłanie powiadomienia na Discord przy starcie
+            threading.Thread(target=self.send_discord_notification, args=(f"🚀 Użytkownik **{self.user_nick}** uruchomił Orbit Client!",), daemon=True).start()
+            
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            
+            watcher = OrbitLogWatcher(self.append_console_stream)
+            watcher.start_watch(process)
+            branding = OrbitWindowBrandingEngine(process.pid, "Orbit Client")
+            threading.Thread(target=branding.monitor_target, daemon=True).start()
+        except Exception as error_msg:
+            err_str = str(error_msg)[:35]
+            self.after(0, lambda: self.status_bar.configure(text=f"Blad startu: {err_str}", text_color="#ef4444"))
 
 if __name__ == "__main__":
     app = OrbitLunarLauncher()
